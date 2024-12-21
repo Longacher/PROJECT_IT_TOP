@@ -1,0 +1,3582 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Парсинг</title>
+    <style>
+        /* Стиль для поля поиска */
+        #searchBox {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* Скрытый список городов с прокруткой */
+        #citiesList {
+            display: none;
+            margin-top: 10px;
+            max-height: 300px;  /* Ограничение по высоте */
+            overflow-y: auto;   /* Прокрутка по вертикали */
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+
+        /* Фиксированное поле поиска для городов */
+        #citySearch {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            position: sticky;
+            top: 0;
+            background-color: #fff; /* Чтобы оно не сливалось с фоном */
+            z-index: 10;  /* Для наложения поверх других элементов */
+            border: 1px solid #ccc;
+        }
+
+        /* Стиль для элементов города (чекбокса и текста) */
+        .city-item {
+            display: block; /* Делает чекбоксы вертикальными */
+            margin: 5px 0;
+        }
+
+        /* Стиль для кнопки "Сохранить выбор" */
+        #saveCitiesBtn {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #saveCitiesBtn:hover {
+            background-color: #45a049;
+        }
+
+        /* Стиль для ошибки */
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .submit-btn, .download-btn, .link-btn {
+            width: 100%;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 8px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+
+
+    </style>
+</head>
+<body>
+    <h1>Запрос парсинга (например: рестораны)</h1>
+
+    <form id="parsingForm" action="/parse" method="POST">
+        <div>
+            <label for="poisk">Поиск:</label>
+            <input type="text" id="poisk" name="poisk" placeholder="Введите запрос для поиска" required>
+            <div id="error" class="error-message" style="display: none;">Пожалуйста, введите запрос для поиска.</div>
+        </div>
+
+        <!-- Кнопка для показа списка городов -->
+        <div>
+            <button type="button" id="toggleCitiesBtn">Выбрать города</button>
+        </div>
+
+        <!-- Скрытый список городов с поиском -->
+        <div id="citiesList">
+            <div>
+                <label for="citySearch">Поиск по городам:</label>
+                <input type="text" id="citySearch" placeholder="Начните вводить город..." oninput="filterCities()">
+            </div>
+
+            <div id="cityItems">
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="adygeisk"> Адыгейск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="maykop"> Майкоп
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gorno-altaysk"> Горно-Алтайск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="aleisk"> Алейск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="barnaul"> Барнаул
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belokurikha"> Белокуриха
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="biysk"> Бийск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the miner"> Горняк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zarinsk"> Заринск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zmeinogorsk"> Змеиногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kamen-na-obi"> Камень-на-Оби
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novoaltaysk"> Новоалтайск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rubtsovsk"> Рубцовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="slavgorod"> Славгород
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="spring"> Яровое
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belogorsk"> Белогорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="blagoveshchensk"> Благовещенск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zavitinsk"> Завитинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zea"> Зея
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="raichikhinsk"> Райчихинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="free"> Свободный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="skovorodino"> Сковородино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tynda"> Тында
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shimanovsk"> Шимановск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="arkhangelsk"> Архангельск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="velsk"> Вельск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kargopol"> Каргополь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="koryazhma"> Коряжма
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kotlas"> Котлас
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mezen"> Мезень
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="peaceful"> Мирный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novodvinsk"> Новодвинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nyandom"> Няндома
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="onega"> Онега
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="severodvinsk"> Северодвинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="solvychegodsk"> Сольвычегодск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shenkursk"> Шенкурск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="astrakhan"> Астрахань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="akhtubinsk"> Ахтубинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="znamensk"> Знаменск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kamyzyak"> Камызяк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="narimanov"> Нариманов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kharabali"> Харабали
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="agidel"> Агидель
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="baymak"> Баймак
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belebey"> Белебей
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="beloretsk"> Белорецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="birsk"> Бирск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="blagoveshchensk"> Благовещенск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="davlekanovo"> Давлеканово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dyurtyuli"> Дюртюли
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ishimbai"> Ишимбай
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kumertau"> Кумертау
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mezhgorye"> Межгорье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="meleuz"> Мелеуз
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="neftekamsk"> Нефтекамск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="october"> Октябрьский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="salavat"> Салават
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sibai"> Сибай
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sterlitamak"> Стерлитамак
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tuimazy"> Туймазы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ufa"> Уфа
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="educational institutions"> Учалы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="janaul"> Янаул
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alekseevka"> Алексеевка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belgorod"> Белгород
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="biryuch"> Бирюч
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="valuyki"> Валуйки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="grayvoron"> Грайворон
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gubkin"> Губкин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the crust"> Короча
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="a new fragment"> Новый Оскол
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="stary oskol"> Старый Оскол
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="builder"> Строитель
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shebekino"> Шебекино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bryansk"> Брянск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dyatkovo"> Дятьково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zhukovka"> Жуковка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zlynka"> Злынка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="karachev"> Карачев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="klintsy"> Клинцы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mglin"> Мглин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novozybkov"> Новозыбков
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pochep"> Почеп
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sevsk"> Севск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the village"> Сельцо
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="starodub"> Стародуб
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="surage"> Сураж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="trubchevsk"> Трубчевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="unecha"> Унеча
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="fokino"> Фокино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="babushkin"> Бабушкин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gusinoozersk"> Гусиноозёрск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zakamensk"> Закаменск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yacht"> Кяхта
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="severobaikalsk"> Северобайкальск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ulan-ude"> Улан-Удэ
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alexandrov"> Александров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vladimir"> Владимир
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vyazniki"> Вязники
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gorokhovets"> Гороховец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="goose-crystal"> Гусь-Хрустальный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kameshkovo"> Камешково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="karabanovo"> Карабаново
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirzhach"> Киржач
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="carpets"> Ковров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kolchugino"> Кольчугино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kosterevo"> Костерёво
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kurlovo"> Курлово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lakinsk"> Лакинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="melenki"> Меленки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="moore"> Муром
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cockerels"> Петушки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cover"> Покров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rainbow"> Радужный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sobinka"> Собинка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="strunino"> Струнино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="once upon a time"> Судогда
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="suzdal"> Суздаль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yuriev-polsky"> Юрьев-Польский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volgograd"> Волгоград
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volzhsky"> Волжский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dubovka"> Дубовка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zhirnovsk"> Жирновск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kalach-on-don"> Калач-на-Дону
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kamyshin"> Камышин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kotelnikovo"> Котельниково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kotovo"> Котово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoslobodsk"> Краснослободск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="leninsk"> Ленинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mikhailovka"> Михайловка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nikolaevsk"> Николаевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novoanninsky"> Новоаннинский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pallasovka"> Палласовка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="petrov val"> Петров Вал
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="serafimovich"> Серафимович
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="surovikino"> Суровикино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="uryupinsk"> Урюпинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="frolovo"> Фролово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="babaevo"> Бабаево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belozersk"> Белозерск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="veliky ustyug"> Великий Устюг
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vologda"> Вологда
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vytegra"> Вытегра
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gryazovets"> Грязовец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kadnikov"> Кадников
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirillov"> Кириллов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasavino"> Красавино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nikolsk"> Никольск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="falcon"> Сокол
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the darkness"> Тотьма
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ustyuzhna"> Устюжна
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kharovsk"> Харовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cherepovets"> Череповец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bobrov"> Бобров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="boguchar"> Богучар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="borisoglebsk"> Борисоглебск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="buturlinovka"> Бутурлиновка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="voronezh"> Воронеж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kalach"> Калач
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="liski"> Лиски
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novovoronezh"> Нововоронеж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novokhopersk"> Новохопёрск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ostrogozhsk"> Острогожск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pavlovsk"> Павловск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="povorino"> Поворино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rossosh"> Россошь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="semiluki"> Семилуки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ertil"> Эртиль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="buynaksk"> Буйнакск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dagestan lights"> Дагестанские Огни
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="derbent"> Дербент
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="izberbash"> Избербаш
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kaspiysk"> Каспийск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kizilyurt"> Кизилюрт
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kizlyar"> Кизляр
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="makhachkala"> Махачкала
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="khasavyurt"> Хасавюрт
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yuzhno-sukhokumsk"> Южно-Сухокумск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="birobidzhan"> Биробиджан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="irradiation"> Облучье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="baley"> Балей
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="borzya"> Борзя
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnokamensk"> Краснокаменск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mogocha"> Могоча
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nerchinsk"> Нерчинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="petrovsk-zabaikalsky"> Петровск-Забайкальский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sretensk"> Сретенск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="hilok"> Хилок
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chita"> Чита
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shilka"> Шилка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vichuga"> Вичуга
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gavrilov posad"> Гаврилов Посад
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zavolzhsk"> Заволжск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ivanovo"> Иваново
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kineshma"> Кинешма
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="komsomolsk"> Комсомольск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kohma"> Кохма
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pillowcases"> Наволоки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ples"> Плёс
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="privolzhsk"> Приволжск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="a bunch"> Пучеж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="springs"> Родники
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="teykovo"> Тейково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="furmanov"> Фурманов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shuya"> Шуя
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="south"> Южа
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yurievets"> Юрьевец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="karabulak"> Карабулак
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="magas"> Магас
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="malgobek"> Малгобек
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nazran"> Назрань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alzamai"> Алзамай
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="angarsk"> Ангарск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="baikalsk"> Байкальск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="biryusinsk"> Бирюсинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bodaibo"> Бодайбо
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bratsk"> Братск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vikhorevka"> Вихоревка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zheleznogorsk-ilimsky"> Железногорск-Илимский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="winter"> Зима
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="irkutsk"> Иркутск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirensk"> Киренск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nizhneudinsk"> Нижнеудинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sayansk"> Саянск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="svirsk"> Свирск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="slyudyanka"> Слюдянка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="taishet"> Тайшет
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tulun"> Тулун
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="usolye-sibirskoye"> Усолье-Сибирское
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ust-ilimsk"> Усть-Илимск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ust-kut"> Усть-Кут
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cheremkhovo"> Черемхово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shelekhov"> Шелехов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="baksan"> Баксан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="may"> Майский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nalchik"> Нальчик
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="narthcala"> Нарткала
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cool"> Прохладный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="terek"> Терек
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tyrnyauz"> Тырныауз
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chegem"> Чегем
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bagrationovsk"> Багратионовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="baltiysk"> Балтийск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gvardeysk"> Гвардейск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gurievsk"> Гурьевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gusev"> Гусев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zelenogradsk"> Зеленоградск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kaliningrad"> Калининград
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoznamensk"> Краснознаменск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ladushkin"> Ладушкин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mamonovo"> Мамоново
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="neman"> Неман
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nesterov"> Нестеров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ozersk"> Озёрск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pioneer"> Пионерский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="polessk"> Полесск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pravdinsk"> Правдинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="svetlogorsk"> Светлогорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="light"> Светлый
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="slavsk"> Славск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sovetsk"> Советск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chernyakhovsk"> Черняховск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="primorsk"> Приморск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gorodovikovsk"> Городовиковск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lagan"> Лагань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="elista"> Элиста
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="balabanovo"> Балабаново
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belousovo"> Белоусово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="borovsk"> Боровск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ermolino"> Ермолино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zhizdra"> Жиздра
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bugs"> Жуков
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kaluga"> Калуга
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirov"> Киров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kozelsk"> Козельск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kondrovo"> Кондрово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="flints"> Кремёнки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ludinovo"> Людиново
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="maloyaroslavets"> Малоярославец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="medyn"> Медынь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="meshchovsk"> Мещовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mosalsk"> Мосальск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="obninsk"> Обнинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sosensky"> Сосенский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="spas-demensk"> Спас-Деменск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sukhinichi"> Сухиничи
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tarusa"> Таруса
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yukhnov"> Юхнов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vilyuchinsk"> Вилючинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="elizovo"> Елизово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="petropavlovsk-kamchatsky"> Петропавловск-Камчатский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="karachaevsk"> Карачаевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="teberda"> Теберда
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ust-dzheguta"> Усть-Джегута
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cherkessk"> Черкесск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belomorsk"> Беломорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="by whom"> Кемь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kondopoga"> Кондопога
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kostomuksha"> Костомукша
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lahdenpohya"> Лахденпохья
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="medvezhegorsk"> Медвежьегорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="olonets"> Олонец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="petrozavodsk"> Петрозаводск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pitcairn"> Питкяранта
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pudozh"> Пудож
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="segezha"> Сегежа
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sortavala"> Сортавала
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="suoyarvi"> Суоярви
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="anzhero-sudzhensk"> Анжеро-Судженск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belovo"> Белово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="berezovsky"> Берёзовский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gurievsk"> Гурьевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kaltan"> Калтан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kemerovo"> Кемерово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kiselevsk"> Киселёвск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="leninsk-kuznetsky"> Ленинск-Кузнецкий
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mariinsk"> Мариинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mezhdurechensk"> Междуреченск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="myski"> Мыски
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novokuznetsk"> Новокузнецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="aspen forests"> Осинники
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="polysaevo"> Полысаево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="prokopyevsk"> Прокопьевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="salair"> Салаир
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="taiga"> Тайга
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tashtagol"> Таштагол
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="furnaces"> Топки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="jurga"> Юрга
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belaya kholunitsa"> Белая Холуница
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vyatka glades"> Вятские Поляны
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zuyevka"> Зуевка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirov"> Киров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirovo-chepetsk"> Кирово-Чепецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirs"> Кирс
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kotelnich"> Котельнич
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pocket"> Луза
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="malmyzh"> Малмыж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="goosebumps"> Мураши
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nolinsk"> Нолинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="omutninsk"> Омутнинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="eagles"> Орлов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="slobodskoy"> Слободской
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sovetsk"> Советск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sosnovka"> Сосновка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="urzhum"> Уржум
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yaransk"> Яранск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vorkuta"> Воркута
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vuktyl"> Вуктыл
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="emba"> Емва
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="inta"> Инта
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mikun"> Микунь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pechora"> Печора
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sosnogorsk"> Сосногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="syktyvkar"> Сыктывкар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="usinsk"> Усинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ukhta"> Ухта
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="buoy"> Буй
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volgorechensk"> Волгореченск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="galich"> Галич
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kologriv"> Кологрив
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kostroma"> Кострома
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="makariev"> Макарьев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="manturovo"> Мантурово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nerekhta"> Нерехта
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="neya"> Нея
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="soligalich"> Солигалич
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chukhloma"> Чухлома
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sharya"> Шарья
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="abinsk"> Абинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="anapa"> Анапа
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="apsheronsk"> Апшеронск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="armavir"> Армавир
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belorechensk"> Белореченск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gelendzhik"> Геленджик
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="hot key"> Горячий Ключ
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gulkevichi"> Гулькевичи
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yeysk"> Ейск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="korenovsk"> Кореновск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnodar"> Краснодар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kropotkin"> Кропоткин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krymsk"> Крымск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kurganinsk"> Курганинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="labinsk"> Лабинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novokubansk"> Новокубанск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novorossiysk"> Новороссийск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="primorsko-akhtarsk"> Приморско-Ахтарск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="slavyansk-on-kuban"> Славянск-на-Кубани
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sochi"> Сочи
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="temryuk"> Темрюк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="timashevsk"> Тимашёвск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tikhoretsk"> Тихорецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tuapse"> Туапсе
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ust-labinsk"> Усть-Лабинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="khadyzhensk"> Хадыженск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="artemovsk"> Артёмовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="achinsk"> Ачинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bogotol"> Боготол
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="borodino"> Бородино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="divnogorsk"> Дивногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dudinka"> Дудинка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yeniseisk"> Енисейск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zheleznogorsk"> Железногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zaozerny"> Заозёрный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zelenogorsk"> Зеленогорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="igarka"> Игарка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ilansky"> Иланский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kansk"> Канск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="codinsk"> Кодинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoyarsk"> Красноярск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lesosibirsk"> Лесосибирск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="minusinsk"> Минусинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nazarovo"> Назарово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="norilsk"> Норильск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sosnovoborsk"> Сосновоборск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="horror"> Ужур
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="uyar"> Уяр
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sharypovo"> Шарыпово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dalmatovo"> Далматово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kataysk"> Катайск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kurgan"> Курган
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kurtamysh"> Куртамыш
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="makushino"> Макушино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="petukhovo"> Петухово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shadrinsk"> Шадринск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the hype"> Шумиха
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shchuchye"> Щучье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dmitriev"> Дмитриев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zheleznogorsk"> Железногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kursk"> Курск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kurchatov"> Курчатов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lgov"> Льгов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="about me"> Обоянь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rylsk"> Рыльск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sudzha"> Суджа
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="fatezh"> Фатеж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="video games"> Щигры
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="boksitogorsk"> Бокситогорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volosovo"> Волосово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volkhov"> Волхов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vsevolozhsk"> Всеволожск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vyborg"> Выборг
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vysotsky"> Высоцк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gatchina"> Гатчина
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ivangorod"> Ивангород
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kamennogorsk"> Каменногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kingisepp"> Кингисепп
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirishi"> Кириши
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirovsk"> Кировск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="communard"> Коммунар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lodeynoye pole"> Лодейное Поле
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="meadows"> Луга
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="luban"> Любань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nikolskoye"> Никольское
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novaya ladoga"> Новая Ладога
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gratifying"> Отрадное
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pikalevo"> Пикалёво
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="podporozhie"> Подпорожье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="primorsk"> Приморск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="priozersk"> Приозерск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="svetogorsk"> Светогорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sertolovo"> Сертолово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="slates"> Сланцы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pine forest"> Сосновый Бор
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="syasstroy"> Сясьстрой
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tikhvin"> Тихвин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="it's disgusting"> Тосно
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="schlisselburg"> Шлиссельбург
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dirt"> Грязи
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dankov"> Данков
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yelets"> Елец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zadonsk"> Задонск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lebedyan"> Лебедянь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lipetsk"> Липецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="usman"> Усмань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chaplygin"> Чаплыгин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="magadan"> Магадан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="susuman"> Сусуман
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volzhsk"> Волжск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zvenigovo"> Звенигово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yoshkar-ola"> Йошкар-Ола
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kozmodemyansk"> Козьмодемьянск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ardatov"> Ардатов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="insar"> Инсар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kovylkino"> Ковылкино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoslobodsk"> Краснослободск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ruzaevka"> Рузаевка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="saransk"> Саранск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="temnikov"> Темников
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="moscow"> Москва
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="aprelevka"> Апрелевка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="balashikha"> Балашиха
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bronnitsy"> Бронницы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vereya"> Верея
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="prominent"> Видное
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volokolamsk"> Волоколамск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="voskresensk"> Воскресенск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vysokovsk"> Высоковск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="golitsyno"> Голицыно
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dedovsk"> Дедовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dzerzhinsky"> Дзержинский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dmitrov"> Дмитров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dolgoprudny"> Долгопрудный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="domodedovo"> Домодедово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="drezna"> Дрезна
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dubna"> Дубна
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yegoryevsk"> Егорьевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="railway"> Железнодорожный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zhukovsky"> Жуковский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zaraysk"> Зарайск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zvenigorod"> Звенигород
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ivanteevka"> Ивантеевка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="istra"> Истра
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kashira"> Кашира
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="klimovsk"> Климовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="wedge"> Клин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kolomna"> Коломна
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kotelniki"> Котельники
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="korolev"> Королёв
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoarmeysk"> Красноармейск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnogorsk"> Красногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnozavodsk"> Краснозаводск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoznamensk"> Краснознаменск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cuban"> Кубинка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kurovskoe"> Куровское
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="likino-dulevo"> Ликино-Дулёво
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lobnya"> Лобня
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="losino-petrovsky"> Лосино-Петровский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lukhovitsy"> Луховицы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lytkarino"> Лыткарино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lyubertsy"> Люберцы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mozhaisk"> Можайск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="moscow"> Московский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mytishchi"> Мытищи
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="naro-fominsk"> Наро-Фоминск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="noginsk"> Ногинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="odintsovo"> Одинцово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="necklace"> Ожерелье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lakes"> Озёры
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="orekhovo-zuyevo"> Орехово-Зуево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pavlovsky posad"> Павловский Посад
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="peresvet"> Пересвет
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="podolsk"> Подольск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="protvino"> Протвино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pushkino"> Пушкино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pushchino"> Пущино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ramenskoe"> Раменское
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="reutov"> Реутов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="roshal"> Рошаль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ruza"> Руза
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sergiev posad"> Сергиев Посад
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="serpukhov"> Серпухов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="solnechnogorsk"> Солнечногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="old kupavna"> Старая Купавна
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="stupino"> Ступино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="taldom"> Талдом
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="troitsk"> Троицк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="fryazino"> Фрязино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="khimki"> Химки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="khotkovo"> Хотьково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chernogolovka"> Черноголовка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chekhov"> Чехов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shatura"> Шатура
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shchelkovo"> Щёлково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shcherbinka"> Щербинка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="elektrogorsk"> Электрогорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="electric steel"> Электросталь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="electric coal"> Электроугли
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="jubilee"> Юбилейный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yakhroma"> Яхрома
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="apatites"> Апатиты
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gadzhievo"> Гаджиево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zaozersk"> Заозёрск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="transpolar"> Заполярный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kandalaksha"> Кандалакша
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirovsk"> Кировск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kovdor"> Ковдор
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cola"> Кола
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="monchegorsk"> Мончегорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="murmansk"> Мурманск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="olenegorsk"> Оленегорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="island"> Островной
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="polar dawns"> Полярные Зори
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="polar"> Полярный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="severomorsk"> Североморск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="snezhnogorsk"> Снежногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="naryan-mar"> Нарьян-Мар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="arzamas"> Арзамас
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="balakhna"> Балахна
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bogorodsk"> Богородск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="boron"> Бор
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vetluga"> Ветлуга
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volodarsk"> Володарск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vorsma"> Ворсма
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vyksa"> Выкса
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gorbatov"> Горбатов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gorodets"> Городец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dzerzhinsk"> Дзержинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the volga region"> Заволжье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the princess"> Княгинино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kstovo"> Кстово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kulebaks"> Кулебаки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lukoyanov"> Лукоянов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lyskovo"> Лысково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="navashino"> Навашино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nizhniy novgorod"> Нижний Новгород
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pavlovo"> Павлово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pervomaisk"> Первомайск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="transportation"> Перевоз
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sarov"> Саров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="semenov"> Семёнов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sergach"> Сергач
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="uren"> Урень
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chkalovsk"> Чкаловск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shahunya"> Шахунья
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="borovichi"> Боровичи
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="valdai"> Валдай
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="veliky novgorod"> Великий Новгород
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="small vishera"> Малая Вишера
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="okulovka"> Окуловка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pestovo"> Пестово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="soltsy"> Сольцы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="staraya russa"> Старая Русса
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="hill"> Холм
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chudovo"> Чудово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="barabinsk"> Барабинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="berdsk"> Бердск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bolotnoe"> Болотное
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="we are looking for"> Искитим
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="karasuk"> Карасук
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kargat"> Каргат
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kuibyshev"> Куйбышев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kupino"> Купино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novosibirsk"> Новосибирск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volume"> Обь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tatarsk"> Татарск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="toguchin"> Тогучин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cherepanovo"> Черепаново
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chulym"> Чулым
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="isilkul"> Исилькуль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kalachinsk"> Калачинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zyvaevsk"> Называевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="omsk"> Омск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="container"> Тара
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tyukalinsk"> Тюкалинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="abdulino"> Абдулино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="buguruslan"> Бугуруслан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="buzuluk"> Бузулук
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="guy"> Гай
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kuvandyk"> Кувандык
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mednogorsk"> Медногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novotroitsk"> Новотроицк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="orenburg"> Оренбург
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="orsk"> Орск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sol-iletsk"> Соль-Илецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sorochinsk"> Сорочинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="clear"> Ясный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bolkhov"> Болхов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dmitrov"> Дмитровск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="livni"> Ливны
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="maloarkhangelsk"> Малоархангельск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mtsensk"> Мценск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novosil"> Новосиль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="eagle"> Орёл
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belinsky"> Белинский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the settlement"> Городище
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zarechny"> Заречный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the heater"> Каменка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kuznetsk"> Кузнецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nizhny lomov"> Нижний Ломов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nikolsk"> Никольск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="penza"> Пенза
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="serdobsk"> Сердобск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="spassk"> Спасск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sursk"> Сурск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alexandrovsk"> Александровск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="berezniki"> Березники
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vereshchagino"> Верещагино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gornozavodsk"> Горнозаводск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gremyachinsk"> Гремячинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gubakha"> Губаха
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dobryanka"> Добрянка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kizel"> Кизел
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnovishersk"> Красновишерск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnokamsk"> Краснокамск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kudymkar"> Кудымкар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kungur"> Кунгур
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lysva"> Лысьва
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nytva"> Нытва
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="wasp"> Оса
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="okhansk"> Оханск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the essay"> Очёр
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="perm"> Пермь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="solikamsk"> Соликамск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="usolye"> Усолье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tchaikovsky"> Чайковский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the attic"> Чердынь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chermoz"> Чёрмоз
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="blackie"> Чернушка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chusovoy"> Чусовой
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="arsenyev"> Арсеньев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="artem"> Артём
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the big stone"> Большой Камень
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vladivostok"> Владивосток
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dalnegorsk"> Дальнегорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dalnerechensk"> Дальнереченск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lesozavodsk"> Лесозаводск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the find"> Находка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="partizansk"> Партизанск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="spassk-dalny"> Спасск-Дальний
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ussuriysk"> Уссурийск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="fokino"> Фокино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="great bows"> Великие Луки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gdov"> Гдов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the bottom"> Дно
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="is nevel"> Невель
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novorzhev"> Новоржев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novosokolniki"> Новосокольники
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="opochka"> Опочка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="island"> Остров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pechora"> Печоры
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="porkhov"> Порхов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pskov"> Псков
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="wasteland"> Пустошка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pytalovo"> Пыталово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sebezh"> Себеж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="azov"> Азов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="aksai"> Аксай
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bataysk"> Батайск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belaya kalitva"> Белая Калитва
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volgodonsk"> Волгодонск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gukovo"> Гуково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="donetsk"> Донецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zverevo"> Зверево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zernograd"> Зерноград
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kamensk-shakhtinsky"> Каменск-Шахтинский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="konstantinovsk"> Константиновск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasny sulin"> Красный Сулин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="miller's"> Миллерово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="morozovsk"> Морозовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novocherkassk"> Новочеркасск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novoshakhtinsk"> Новошахтинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="proletarsk"> Пролетарск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rostov-on-don"> Ростов-на-Дону
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="salsk"> Сальск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="semikarakorsk"> Семикаракорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="taganrog"> Таганрог
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tsimlyansk"> Цимлянск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mines"> Шахты
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kasimov"> Касимов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the ship"> Кораблино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mikhailov"> Михайлов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novomichurinsk"> Новомичуринск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="fish"> Рыбное
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ryazhsk"> Ряжск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ryazan"> Рязань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sasovo"> Сасово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="skopin"> Скопин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="spas-klepiki"> Спас-Клепики
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="spassk-ryazansky"> Спасск-Рязанский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shatsk"> Шацк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zhigulevsk"> Жигулёвск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kinel"> Кинель
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="neftegorsk"> Нефтегорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novokuibyshevsk"> Новокуйбышевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="october"> Октябрьск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gratifying"> Отрадный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pokhvistnevo"> Похвистнево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="samara"> Самара
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="syzran"> Сызрань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tolyatti"> Тольятти
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chapaevsk"> Чапаевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zelenogorsk"> Зеленогорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kolpino"> Колпино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoe selo"> Красное Село
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kronstadt"> Кронштадт
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lomonosov"> Ломоносов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pavlovsk"> Павловск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="peterhof"> Петергоф
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pushkin"> Пушкин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="saint-petersburg"> Санкт-Петербург
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sestroretsk"> Сестрорецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="arkadak"> Аркадак
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="atkarsk"> Аткарск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="balakovo"> Балаково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="balashov"> Балашов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volsk"> Вольск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ershov"> Ершов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kalininsk"> Калининск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoarmeysk"> Красноармейск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="red cut"> Красный Кут
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="marx"> Маркс
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novouzensk"> Новоузенск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="petrovsk"> Петровск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pugachev"> Пугачёв
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rtishchevo"> Ртищево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="saratov"> Саратов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="khvalynsk"> Хвалынск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sheehans"> Шиханы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="engels"> Энгельс
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alexandrovsk-sakhalinsky"> Александровск-Сахалинский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="aniva"> Анива
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dolinsk"> Долинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="korsakov"> Корсаков
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kurilsk"> Курильск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="makarov"> Макаров
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nevelsk"> Невельск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ohh"> Оха
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="poronaisk"> Поронайск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="severo-kurilsk"> Северо-Курильск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tomari"> Томари
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="uglegorsk"> Углегорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kholmsk"> Холмск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shakhtersk"> Шахтёрск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yuzhno-sakhalinsk"> Южно-Сахалинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alapayevsk"> Алапаевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="aramil"> Арамиль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="artemovsky"> Артёмовский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="asbestos"> Асбест
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="berezovsky"> Берёзовский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bogdanovich"> Богданович
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="verkhny tagil"> Верхний Тагил
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="upper pyshma"> Верхняя Пышма
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="upper salda"> Верхняя Салда
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="upper tour"> Верхняя Тура
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="verkhoturye"> Верхотурье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="volchansk"> Волчанск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="degtyarsk"> Дегтярск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ekaterinburg"> Екатеринбург
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zarechny"> Заречный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ivdel"> Ивдель
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="irbit"> Ирбит
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kamensk-uralsky"> Каменск-Уральский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kamyshlov"> Камышлов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="karpinsk"> Карпинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kachkanar"> Качканар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirovgrad"> Кировград
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoturinsk"> Краснотурьинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnouralsk"> Красноуральск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="krasnoufimsk"> Красноуфимск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kushva"> Кушва
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="forest"> Лесной
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mikhailovsk"> Михайловск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nevyansk"> Невьянск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lower sergs"> Нижние Серги
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nizhny tagil"> Нижний Тагил
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nizhnyaya salda"> Нижняя Салда
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lower tour"> Нижняя Тура
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="new lala"> Новая Ляля
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novouralsk"> Новоуральск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pervouralsk"> Первоуральск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="polevskoy"> Полевской
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="revda"> Ревда
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value=""> Реж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="directed by severouralsk"> Североуральск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="serov"> Серов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sredneuralsk"> Среднеуральск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dry log"> Сухой Лог
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sysert"> Сысерть
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tavda"> Тавда
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="talitsa"> Талица
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="turinsk"> Туринск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alagir"> Алагир
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ardon"> Ардон
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="beslan"> Беслан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vladikavkaz"> Владикавказ
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="digora"> Дигора
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mozdok"> Моздок
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="velizh"> Велиж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vyazma"> Вязьма
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gagarin"> Гагарин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="demidov"> Демидов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="desnogorsk"> Десногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dorogobuzh"> Дорогобуж
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="spirituality"> Духовщина
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yelnya"> Ельня
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="repairs"> Починок
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="roslavl"> Рославль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rudnya"> Рудня
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="safonovo"> Сафоново
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="smolensk"> Смоленск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sychevka"> Сычёвка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yartsevo"> Ярцево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="grateful"> Благодарный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="budennovsk"> Будённовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="georgievsk"> Георгиевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="essentuki"> Ессентуки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zheleznovodsk"> Железноводск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zelenokumsk"> Зеленокумск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="abundant"> Изобильный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ipatovo"> Ипатово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kislovodsk"> Кисловодск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lermontov"> Лермонтов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mineral waters"> Минеральные Воды
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mikhailovsk"> Михайловск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nevinnomyssk"> Невинномысск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="neftekumsk"> Нефтекумск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novoalexandrovsk"> Новоалександровск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novopavlovsk"> Новопавловск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pyatigorsk"> Пятигорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="svetlograd"> Светлоград
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="stavropol"> Ставрополь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the perch"> Жердевка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kirsanov"> Кирсанов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kotovsk"> Котовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="michurinsk"> Мичуринск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="morshansk"> Моршанск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rasskazovo"> Рассказово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tambov"> Тамбов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="uvarovo"> Уварово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="agryz"> Агрыз
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="aznakaevo"> Азнакаево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="almetyevsk"> Альметьевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="arsk"> Арск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bavly"> Бавлы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bulgarians"> Болгар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bugulma"> Бугульма
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="buinsk"> Буинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yelabuga"> Елабуга
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zainsk"> Заинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zelenodolsk"> Зеленодольск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kazan"> Казань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="laishevo"> Лаишево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="leninogorsk"> Лениногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mamadysh"> Мамадыш
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mendeleevsk"> Менделеевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="menzelinsk"> Мензелинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="naberezhnye chelny"> Набережные Челны
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nizhnekamsk"> Нижнекамск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nurlat"> Нурлат
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tetyushi"> Тетюши
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chistopol"> Чистополь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="andreapol"> Андреаполь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bezhetsk"> Бежецк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="white"> Белый
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bologoe"> Бологое
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vesyegonsk"> Весьегонск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vyshny volochek"> Вышний Волочёк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="the western dvina"> Западная Двина
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="teeth"> Зубцов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kalyazin"> Калязин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kashin"> Кашин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kimry"> Кимры
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="konakovo"> Конаково
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="red hill"> Красный Холм
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kuvshinovo"> Кувшиново
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="likhoslavl"> Лихославль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="it's not fair"> Нелидово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ostashkov"> Осташков
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rzhev"> Ржев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="oxbow"> Старица
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tver"> Тверь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="torzhok"> Торжок
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="toropets"> Торопец
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="udomlya"> Удомля
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="asino"> Асино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cedar"> Кедровый
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kolpashevo"> Колпашево
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="seversk"> Северск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="strezhevoy"> Стрежевой
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tomsk"> Томск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alexin"> Алексин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="belev"> Белёв
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bogoroditsk"> Богородицк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bolokhovo"> Болохово
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="venev"> Венёв
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="donskoy"> Донской
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="efremov"> Ефремов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kimovsk"> Кимовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kireevsk"> Киреевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sticky"> Липки
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novomoskovsk"> Новомосковск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="plavsk"> Плавск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="suvorov"> Суворов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tula"> Тула
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nodal"> Узловая
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chekalin"> Чекалин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shchekino"> Щёкино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yasnogorsk"> Ясногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sovetsk"> Советск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ak-dovurak"> Ак-Довурак
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kyzyl"> Кызыл
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="turan"> Туран
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chadan"> Чадан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shagonar"> Шагонар
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zavodoukovsk"> Заводоуковск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ishim"> Ишим
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tobolsk"> Тобольск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tyumen"> Тюмень
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yalutorovsk"> Ялуторовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="votkinsk"> Воткинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="glazov"> Глазов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="izhevsk"> Ижевск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kambarka"> Камбарка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="maybe"> Можга
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sarapul"> Сарапул
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="young lady"> Барыш
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="dimitrovgrad"> Димитровград
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="inza"> Инза
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novoulianovsk"> Новоульяновск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sengilei"> Сенгилей
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ulyanovsk"> Ульяновск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="amursk"> Амурск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bikin"> Бикин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vyazemsky"> Вяземский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="komsomolsk-on-amur"> Комсомольск-на-Амуре
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nikolaevsk-on-amur"> Николаевск-на-Амуре
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sovetskaya gavan"> Советская Гавань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="khabarovsk"> Хабаровск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="abaza"> Абаза
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="abakan"> Абакан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sayanogorsk"> Саяногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sorsk"> Сорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chernogorsk"> Черногорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="beloyarsky"> Белоярский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kogalym"> Когалым
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="langepas"> Лангепас
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lyantor"> Лянтор
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="megion"> Мегион
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nefteyugansk"> Нефтеюганск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nizhnevartovsk"> Нижневартовск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nyagan"> Нягань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shake it"> Покачи
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pyt-yah"> Пыть-Ях
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rainbow"> Радужный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="soviet"> Советский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="surgut"> Сургут
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="hooray"> Урай
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="khanty-mansiysk"> Ханты-Мансийск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yugorsk"> Югорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="asha"> Аша
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bakal"> Бакал
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="verkhneuralsk"> Верхнеуральск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="upper ufaley"> Верхний Уфалей
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yemanzhelinsk"> Еманжелинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="zlatoust"> Златоуст
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="karabash"> Карабаш
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cartals"> Карталы
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kasli"> Касли
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="katav-ivanovsk"> Катав-Ивановск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kopeysk"> Копейск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="korkino"> Коркино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kusa"> Куса
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kyshtym"> Кыштым
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="magnitogorsk"> Магнитогорск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="miass"> Миасс
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="minyar"> Миньяр
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nyazepetrovsk"> Нязепетровск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ozersk"> Озёрск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="formation"> Пласт
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="satka"> Сатка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="sim"> Сим
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="snezhinsk"> Снежинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="trekhgorny"> Трёхгорный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="troitsk"> Троицк
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="ust-katav"> Усть-Катав
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chebarkul"> Чебаркуль
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="chelyabinsk"> Челябинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yuzhnouralsk"> Южноуральск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yuryuzan"> Юрюзань
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="argun"> Аргун
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="fearsome"> Грозный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gudermes"> Гудермес
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="urus-martan"> Урус-Мартан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shawls"> Шали
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="alatyr"> Алатырь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kanash"> Канаш
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="kozlovka"> Козловка
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="mariinsky posad"> Мариинский Посад
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novocheboksarsk"> Новочебоксарск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tsivilsk"> Цивильск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="cheboksary"> Чебоксары
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="shumerlya"> Шумерля
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yadrin"> Ядрин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="anadyr"> Анадырь
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="bilibino"> Билибино
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pevek"> Певек
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="aldan"> Алдан
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="verkhoyansk"> Верхоянск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="vilyuysk"> Вилюйск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="lensk"> Ленск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="peaceful"> Мирный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="neryungri"> Нерюнгри
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nyurba"> Нюрба
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="olekminsk"> Олёкминск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pokrovsk"> Покровск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="srednekolymsk"> Среднеколымск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tommot"> Томмот
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="successful"> Удачный
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yakutsk"> Якутск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gubkinsky"> Губкинский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="labytnangi"> Лабытнанги
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="muravlenko"> Муравленко
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="nadym"> Надым
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="novy urengoy"> Новый Уренгой
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="november"> Ноябрьск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="salekhard"> Салехард
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tarko-sale"> Тарко-Сале
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="gavrilov-yam"> Гаврилов-Ям
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="danilov"> Данилов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="we love you"> Любим
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="myshkin"> Мышкин
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="pereslavl-zalessky"> Переславль-Залесский
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="poshonye"> Пошехонье
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rostov"> Ростов
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="rybinsk"> Рыбинск
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="tutaev"> Тутаев
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="uglich"> Углич
+                </label>
+                <label class="city-item">
+                    <input type="checkbox" name="cities" value="yaroslavl"> Ярославль
+                </label>
+                
+                
+                
+                
+                
+                
+            </div>
+        </div>
+
+        <div>
+            <button type="submit">Начать парсинг</button>
+        </div>
+    </form>
+
+    {% if download_links %}
+        <h2>Скачивание файлов:</h2>
+        <ul>
+            {% for link in download_links %}
+                <li><a href="{{ link }}" target="_blank">Скачать файл для {{ link.split('_')[-1].split('.')[0] }}</a></li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <br><br>
+    <a href="/">
+        <button>Перейти на страницу входа</button>
+    </a>
+
+    <script>
+        const form = document.getElementById('parsingForm');
+        const poiskInput = document.getElementById('poisk');
+        const errorMessage = document.getElementById('error');
+
+        // Проверка при отправке формы
+        form.onsubmit = function(event) {
+            if (!poiskInput.value.trim()) {
+                event.preventDefault();  // Останавливаем отправку формы
+                errorMessage.style.display = 'block';  // Показываем ошибку
+            } else {
+                errorMessage.style.display = 'none';  // Скрываем ошибку, если поле заполнено
+            }
+        };
+
+        // Проверка на пустоту при вводе текста (ошибка исчезает, если поле заполнено)
+        poiskInput.addEventListener('input', function() {
+            if (poiskInput.value.trim()) {
+                errorMessage.style.display = 'none';
+            } else {
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        // Функция для показа/скрытия списка городов
+        document.getElementById('toggleCitiesBtn').onclick = function() {
+            const citiesList = document.getElementById('citiesList');
+            if (citiesList.style.display === 'none' || citiesList.style.display === '') {
+                citiesList.style.display = 'block';
+            } else {
+                citiesList.style.display = 'none';
+            }
+        };
+
+        // Функция для фильтрации городов
+        function filterCities() {
+            const searchQuery = document.getElementById('citySearch').value.toLowerCase();
+            const cityItems = document.querySelectorAll('.city-item');
+            cityItems.forEach(function(item) {
+                const cityName = item.textContent.trim().toLowerCase();
+                if (cityName.includes(searchQuery)) {
+                    item.style.display = 'block'; // Показываем, если подходит
+                } else {
+                    item.style.display = 'none'; // Скрываем, если не подходит
+                }
+            });
+        }
+    </script>
+</body>
+</html>

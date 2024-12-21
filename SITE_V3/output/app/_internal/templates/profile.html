@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        p {
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin: 15px 0 5px;
+        }
+        input[type="file"], textarea {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .back-button {
+            background-color: #008CBA;
+            margin-top: 20px;
+        }
+        .back-button:hover {
+            background-color: #007B9E;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Личный кабинет</h1>
+        <p>ID пользователя: {{ user_id }}</p>
+        <p>Номер телефона: {{ phone_number }}</p>
+
+        <form method="POST" enctype="multipart/form-data">
+            <label for="file">Загрузите файл с номерами телефонов:</label>
+            <input type="file" name="file" required>
+
+            <label for="message">Введите ваше сообщение:</label>
+            <textarea name="message" rows="4" required></textarea>
+
+            <button type="submit">Загрузить и отправить</button>
+        </form>
+
+        <a href="/">
+            <button class="back-button">Перейти на страницу входа</button>
+        </a>
+    </div>
+</body>
+</html>
